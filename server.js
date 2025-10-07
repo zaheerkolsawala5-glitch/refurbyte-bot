@@ -108,4 +108,58 @@ app.post("/webhook", async (req,res) => {
           await sendSubmenu(from, selectedService, ["💻 Budget Office PCs from £120","🎮 Mid-range Gaming PCs from £350","⚡ High-end Builds from £700+","","Reply 'menu' to return."]);
           break;
         case "PC Repairs & Diagnostics":
-          await sendSubmenu(from, selectedService, ["🧠 Full System Diagnostics - £25","🔧 Repairs (quote after inspection)","💨
+          await sendSubmenu(from, selectedService, ["🧠 Full System Diagnostics - £25","🔧 Repairs (quote after inspection)","💨 Cleaning & Maintenance - from £20","","Reply 'menu' to return."]);
+          break;
+        case "Hardware Upgrades":
+          await sendSubmenu(from, selectedService, ["🪛 RAM / SSD Upgrades","🔋 PSU / GPU Replacement","📈 Performance Optimization","","Reply 'menu' to return."]);
+          break;
+        case "Custom Gaming Builds":
+          await sendSubmenu(from, selectedService, ["🎮 Custom Spec Consultation - Free","🧩 Budget to Performance Optimized","🚀 Delivery & Setup Options","","Reply 'menu' to return."]);
+          break;
+        case "Trade-In / Recycle":
+          await sendSubmenu(from, selectedService, ["♻️ Trade your old PC for credit","🖥️ Free eco-friendly disposal","","Reply 'menu' to return."]);
+          break;
+        case "Contact & Support":
+          await sendSubmenu(from, selectedService, ["📞 WhatsApp us anytime","📧 support@refurbyte.com","📍 Leicester, UK","","Reply 'menu' to return."]);
+          break;
+      }
+    } else {
+      await sendMessage(from, "👋 Welcome to Refurbyte! Type *menu* to get started.");
+    }
+
+    res.sendStatus(200);
+
+  } catch (err) {
+    console.error("❌ Error handling webhook:", err);
+    res.sendStatus(500);
+  }
+});
+
+// === MENU FUNCTIONS ===
+async function sendMenu(to){
+  const text=["📋 *Refurbyte Main Menu*","","1️⃣ Refurbished PCs","2️⃣ PC Repairs & Diagnostics","3️⃣ Hardware Upgrades","4️⃣ Custom Gaming Builds","5️⃣ Trade-In or Recycle","6️⃣ Contact & Support","","Reply with a number (1-6) to explore a service."].join("\n");
+  await sendMessage(to, text);
+}
+
+async function sendSubmenu(to, title, lines){
+  const text=[`📂 *${title}*`,"",...lines].join("\n");
+  await sendMessage(to, text);
+}
+
+// === WHATSAPP DISPATCH ===
+async function sendMessage(to, text){
+  try {
+    await axios.post(`https://graph.facebook.com/v17.0/${META_PHONE_NUMBER_ID}/messages`,
+      { messaging_product: "whatsapp", to, text:{ body:text } },
+      { headers:{ Authorization:`Bearer ${META_ACCESS_TOKEN}`, "Content-Type":"application/json" } }
+    );
+  } catch(err){
+    console.error("❌ Message send error:", err.response?.data || err.message);
+  }
+}
+
+// === START SERVER + BACKUPS ===
+const PORT = process.env.PORT || 3000;
+app.listen(PORT, () => console.log(`Server running on port ${PORT}`));
+backupDB(); // initial backup
+setInterval(backupDB, 6*60*60*1000); // every 6 hours
