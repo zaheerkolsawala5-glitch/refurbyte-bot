@@ -1,0 +1,68 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Refurbyte Bot Dashboard</title>
+  <style>
+    body { font-family: Arial, sans-serif; background: #f4f4f4; margin: 0; padding: 0; }
+    header { background: #222; color: #fff; padding: 1rem; text-align: center; }
+    h1 { margin: 0; }
+    table { width: 90%; margin: 2rem auto; border-collapse: collapse; }
+    th, td { padding: 0.75rem; border: 1px solid #ddd; text-align: left; }
+    th { background: #333; color: #fff; }
+    tr:nth-child(even) { background: #eee; }
+  </style>
+</head>
+<body>
+  <header>
+    <h1>Refurbyte Bot Dashboard</h1>
+  </header>
+
+  <table>
+    <thead>
+      <tr>
+        <th>User ID</th>
+        <th>Last Message</th>
+        <th>Last Service</th>
+        <th>Last Interaction</th>
+      </tr>
+    </thead>
+    <tbody id="users-table">
+      <tr><td colspan="4" style="text-align:center;">Loading...</td></tr>
+    </tbody>
+  </table>
+
+  <script>
+    async function fetchUsers() {
+      try {
+        const res = await fetch("/api/users");
+        const users = await res.json();
+
+        const tbody = document.getElementById("users-table");
+        tbody.innerHTML = "";
+
+        if (users.length === 0) {
+          tbody.innerHTML = `<tr><td colspan="4" style="text-align:center;">No users yet</td></tr>`;
+          return;
+        }
+
+        users.forEach(user => {
+          const tr = document.createElement("tr");
+          tr.innerHTML = `
+            <td>${user.id}</td>
+            <td>${user.last_message || "-"}</td>
+            <td>${user.last_service || "-"}</td>
+            <td>${user.last_interaction || "-"}</td>
+          `;
+          tbody.appendChild(tr);
+        });
+      } catch (err) {
+        console.error(err);
+      }
+    }
+
+    fetchUsers();
+    setInterval(fetchUsers, 5000);
+  </script>
+</body>
+</html>
