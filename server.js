@@ -1,7 +1,7 @@
 // =========================================================
 // Refurbyte WhatsApp Chatbot — Node.js + Express + SQLite
 // Author: Z (Founder, Refurbyte)
-// Version: 1.1.0 — Persistent memory & menus
+// Version: 1.2.0 — Persistent memory + dynamic menus + lead tracking
 // =========================================================
 
 import express from "express";
@@ -85,56 +85,83 @@ app.post("/webhook", async (req, res) => {
           `, [from, message.text.body]);
         }
 
-        // --- MAIN MENU LOGIC ---
+        // --- DETERMINE SELECTED SERVICE ---
+        let selectedService = null;
+        if (msgBody.includes("1")) selectedService = "Refurbished PCs";
+        else if (msgBody.includes("2")) selectedService = "PC Repairs & Diagnostics";
+        else if (msgBody.includes("3")) selectedService = "Hardware Upgrades";
+        else if (msgBody.includes("4")) selectedService = "Custom Gaming Builds";
+        else if (msgBody.includes("5")) selectedService = "Trade-In / Recycle";
+        else if (msgBody.includes("6")) selectedService = "Contact & Support";
+
+        // --- SAVE SELECTED SERVICE TO DB ---
+        if (db && selectedService) {
+          await db.run(`
+            UPDATE users
+            SET last_service = ?
+            WHERE id = ?
+          `, [selectedService, from]);
+        }
+
+        // --- MENU LOGIC ---
         if (msgBody.includes("menu")) {
           await sendMenu(from);
-        } else if (msgBody.includes("1")) {
-          await sendSubmenu(from, "Refurbished PCs", [
-            "💻 Budget Office PCs from £120",
-            "🎮 Mid-range Gaming PCs from £350",
-            "⚡ High-end Builds from £700+",
-            "",
-            "Reply 'menu' to return."
-          ]);
-        } else if (msgBody.includes("2")) {
-          await sendSubmenu(from, "PC Repairs & Diagnostics", [
-            "🧠 Full System Diagnostics - £25",
-            "🔧 Repairs (quote after inspection)",
-            "💨 Cleaning & Maintenance - from £20",
-            "",
-            "Reply 'menu' to return."
-          ]);
-        } else if (msgBody.includes("3")) {
-          await sendSubmenu(from, "Hardware Upgrades", [
-            "🪛 RAM / SSD Upgrades",
-            "🔋 PSU / GPU Replacement",
-            "📈 Performance Optimization",
-            "",
-            "Reply 'menu' to return."
-          ]);
-        } else if (msgBody.includes("4")) {
-          await sendSubmenu(from, "Custom Gaming Builds", [
-            "🎮 Custom Spec Consultation - Free",
-            "🧩 Budget to Performance Optimized",
-            "🚀 Delivery & Setup Options",
-            "",
-            "Reply 'menu' to return."
-          ]);
-        } else if (msgBody.includes("5")) {
-          await sendSubmenu(from, "Trade-In / Recycle", [
-            "♻️ Trade your old PC for credit",
-            "🖥️ Free eco-friendly disposal",
-            "",
-            "Reply 'menu' to return."
-          ]);
-        } else if (msgBody.includes("6")) {
-          await sendSubmenu(from, "Contact & Support", [
-            "📞 WhatsApp us anytime",
-            "📧 support@refurbyte.com",
-            "📍 Leicester, UK",
-            "",
-            "Reply 'menu' to return."
-          ]);
+        } else if (selectedService) {
+          switch (selectedService) {
+            case "Refurbished PCs":
+              await sendSubmenu(from, selectedService, [
+                "💻 Budget Office PCs from £120",
+                "🎮 Mid-range Gaming PCs from £350",
+                "⚡ High-end Builds from £700+",
+                "",
+                "Reply 'menu' to return."
+              ]);
+              break;
+            case "PC Repairs & Diagnostics":
+              await sendSubmenu(from, selectedService, [
+                "🧠 Full System Diagnostics - £25",
+                "🔧 Repairs (quote after inspection)",
+                "💨 Cleaning & Maintenance - from £20",
+                "",
+                "Reply 'menu' to return."
+              ]);
+              break;
+            case "Hardware Upgrades":
+              await sendSubmenu(from, selectedService, [
+                "🪛 RAM / SSD Upgrades",
+                "🔋 PSU / GPU Replacement",
+                "📈 Performance Optimization",
+                "",
+                "Reply 'menu' to return."
+              ]);
+              break;
+            case "Custom Gaming Builds":
+              await sendSubmenu(from, selectedService, [
+                "🎮 Custom Spec Consultation - Free",
+                "🧩 Budget to Performance Optimized",
+                "🚀 Delivery & Setup Options",
+                "",
+                "Reply 'menu' to return."
+              ]);
+              break;
+            case "Trade-In / Recycle":
+              await sendSubmenu(from, selectedService, [
+                "♻️ Trade your old PC for credit",
+                "🖥️ Free eco-friendly disposal",
+                "",
+                "Reply 'menu' to return."
+              ]);
+              break;
+            case "Contact & Support":
+              await sendSubmenu(from, selectedService, [
+                "📞 WhatsApp us anytime",
+                "📧 support@refurbyte.com",
+                "📍 Leicester, UK",
+                "",
+                "Reply 'menu' to return."
+              ]);
+              break;
+          }
         } else {
           await sendMessage(from, "👋 Welcome to Refurbyte! Type *menu* to get started.");
         }
