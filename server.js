@@ -1,7 +1,7 @@
 // =========================================================
 // Refurbyte WhatsApp Chatbot — Node.js + Express + SQLite
 // Author: Z (Founder, Refurbyte)
-// Version: 1.2.0 — Persistent memory + dynamic menus + lead tracking
+// Version: 1.2.1 — Cleaned, persistent memory + dynamic menus + lead tracking
 // =========================================================
 
 import express from "express";
@@ -39,7 +39,7 @@ app.get("/healthz", (req, res) => {
   res.status(200).send("✅ Refurbyte chatbot active and online");
 });
 
-// === DEFAULT ROOT ROUTE ===
+// === ROOT ROUTE ===
 app.get("/", (req, res) => {
   res.send("✅ Refurbyte Bot Server is Live and Connected");
 });
@@ -107,61 +107,7 @@ app.post("/webhook", async (req, res) => {
         if (msgBody.includes("menu")) {
           await sendMenu(from);
         } else if (selectedService) {
-          switch (selectedService) {
-            case "Refurbished PCs":
-              await sendSubmenu(from, selectedService, [
-                "💻 Budget Office PCs from £120",
-                "🎮 Mid-range Gaming PCs from £350",
-                "⚡ High-end Builds from £700+",
-                "",
-                "Reply 'menu' to return."
-              ]);
-              break;
-            case "PC Repairs & Diagnostics":
-              await sendSubmenu(from, selectedService, [
-                "🧠 Full System Diagnostics - £25",
-                "🔧 Repairs (quote after inspection)",
-                "💨 Cleaning & Maintenance - from £20",
-                "",
-                "Reply 'menu' to return."
-              ]);
-              break;
-            case "Hardware Upgrades":
-              await sendSubmenu(from, selectedService, [
-                "🪛 RAM / SSD Upgrades",
-                "🔋 PSU / GPU Replacement",
-                "📈 Performance Optimization",
-                "",
-                "Reply 'menu' to return."
-              ]);
-              break;
-            case "Custom Gaming Builds":
-              await sendSubmenu(from, selectedService, [
-                "🎮 Custom Spec Consultation - Free",
-                "🧩 Budget to Performance Optimized",
-                "🚀 Delivery & Setup Options",
-                "",
-                "Reply 'menu' to return."
-              ]);
-              break;
-            case "Trade-In / Recycle":
-              await sendSubmenu(from, selectedService, [
-                "♻️ Trade your old PC for credit",
-                "🖥️ Free eco-friendly disposal",
-                "",
-                "Reply 'menu' to return."
-              ]);
-              break;
-            case "Contact & Support":
-              await sendSubmenu(from, selectedService, [
-                "📞 WhatsApp us anytime",
-                "📧 support@refurbyte.com",
-                "📍 Leicester, UK",
-                "",
-                "Reply 'menu' to return."
-              ]);
-              break;
-          }
+          await sendSubmenuByService(from, selectedService);
         } else {
           await sendMessage(from, "👋 Welcome to Refurbyte! Type *menu* to get started.");
         }
@@ -194,6 +140,66 @@ async function sendMenu(to) {
   await sendMessage(to, text);
 }
 
+async function sendSubmenuByService(to, service) {
+  let lines = [];
+  switch (service) {
+    case "Refurbished PCs":
+      lines = [
+        "💻 Budget Office PCs from £120",
+        "🎮 Mid-range Gaming PCs from £350",
+        "⚡ High-end Builds from £700+",
+        "",
+        "Reply 'menu' to return."
+      ];
+      break;
+    case "PC Repairs & Diagnostics":
+      lines = [
+        "🧠 Full System Diagnostics - £25",
+        "🔧 Repairs (quote after inspection)",
+        "💨 Cleaning & Maintenance - from £20",
+        "",
+        "Reply 'menu' to return."
+      ];
+      break;
+    case "Hardware Upgrades":
+      lines = [
+        "🪛 RAM / SSD Upgrades",
+        "🔋 PSU / GPU Replacement",
+        "📈 Performance Optimization",
+        "",
+        "Reply 'menu' to return."
+      ];
+      break;
+    case "Custom Gaming Builds":
+      lines = [
+        "🎮 Custom Spec Consultation - Free",
+        "🧩 Budget to Performance Optimized",
+        "🚀 Delivery & Setup Options",
+        "",
+        "Reply 'menu' to return."
+      ];
+      break;
+    case "Trade-In / Recycle":
+      lines = [
+        "♻️ Trade your old PC for credit",
+        "🖥️ Free eco-friendly disposal",
+        "",
+        "Reply 'menu' to return."
+      ];
+      break;
+    case "Contact & Support":
+      lines = [
+        "📞 WhatsApp us anytime",
+        "📧 support@refurbyte.com",
+        "📍 Leicester, UK",
+        "",
+        "Reply 'menu' to return."
+      ];
+      break;
+  }
+  await sendSubmenu(to, service, lines);
+}
+
 async function sendSubmenu(to, title, lines) {
   const text = [`📂 *${title}*`, "", ...lines].join("\n");
   await sendMessage(to, text);
@@ -222,9 +228,5 @@ async function sendMessage(to, text) {
 }
 
 // === START SERVER ===
-app.get('/', (req, res) => {
-  res.send('✅ Refurbyte Bot Server is Live and Connected');
-});
-
 const PORT = process.env.PORT || 3000;
-app.listen(PORT, () => console.log(`Server running on port ${PORT}`));
+app.listen(PORT, () => console.log(`🚀 Refurbyte bot running on port ${PORT}`));
