@@ -199,4 +199,18 @@ async function sendMessage(to, text) {
   try {
     await axios.post(
       `https://graph.facebook.com/v17.0/${META_PHONE_NUMBER_ID}/messages`,
-      { messaging_product: "whatsapp", to, text: {
+      { messaging_product: "whatsapp", to, text: { body: text } },
+      { headers: { Authorization: `Bearer ${META_ACCESS_TOKEN}`, "Content-Type": "application/json" } }
+    );
+  } catch (err) {
+    console.error("❌ Message send error:", err.response?.data || err.message);
+  }
+}
+
+// === START SERVER ===
+const PORT = process.env.PORT || 3000;
+app.listen(PORT, () => console.log(`Server running on port ${PORT}`));
+
+// === BACKUPS ===
+backupDB(); // run once on start
+setInterval(backupDB, 6 * 60 * 60 * 1000); // run every 6 hours
