@@ -1,24 +1,24 @@
 // =========================================================
-// Refurbyte WhatsApp Chatbot — Node.js + Express
+// Refurbyte WhatsApp Chatbot — Node.js + Express + SQLite
 // Author: Z (Founder, Refurbyte)
-// Version: 1.0.0 — Production Build
+// Version: 1.1.0 — Persistent memory & menus
 // =========================================================
 
 import express from "express";
 import axios from "axios";
 import rateLimit from "express-rate-limit";
-
-// === CONFIG ===
 import dotenv from "dotenv";
+import { initDB } from "./database.js";
+
 dotenv.config();
 
 const app = express();
 app.use(express.json());
 
-// === RATE LIMITING (protect against spam/flooding) ===
+// === RATE LIMITING ===
 const limiter = rateLimit({
-  windowMs: 60 * 1000, // 1 minute
-  max: 20, // limit each IP to 20 requests/min
+  windowMs: 60 * 1000,
+  max: 20,
 });
 app.use(limiter);
 
@@ -27,12 +27,24 @@ const VERIFY_TOKEN = process.env.VERIFY_TOKEN || "refurbyte_verify";
 const META_ACCESS_TOKEN = process.env.META_ACCESS_TOKEN;
 const META_PHONE_NUMBER_ID = process.env.META_PHONE_NUMBER_ID;
 
+// === DATABASE ===
+let db;
+initDB().then(database => {
+  db = database;
+  console.log("✅ Database initialized");
+});
+
 // === HEALTH CHECK ===
 app.get("/healthz", (req, res) => {
   res.status(200).send("✅ Refurbyte chatbot active and online");
 });
 
-// === WEBHOOK VERIFICATION (Meta setup) ===
+// === DEFAULT ROOT ROUTE ===
+app.get("/", (req, res) => {
+  res.send("✅ Refurbyte Bot Server is Live and Connected");
+});
+
+// === WEBHOOK VERIFICATION ===
 app.get("/webhook", (req, res) => {
   const mode = req.query["hub.mode"];
   const token = req.query["hub.verify_token"];
@@ -64,6 +76,16 @@ app.post("/webhook", async (req, res) => {
 
         console.log(`💬 Message from ${from}: ${msgBody}`);
 
+        // --- TRACK USER IN DATABASE ---
+        if (db) {
+          await db.run(`
+            INSERT INTO users (id, last_message)
+            VALUES (?, ?)
+            ON CONFLICT(id) DO UPDATE SET last_message=excluded.last_message
+          `, [from, message.text.body]);
+        }
+
+        // --- MAIN MENU LOGIC ---
         if (msgBody.includes("menu")) {
           await sendMenu(from);
         } else if (msgBody.includes("1")) {
@@ -178,5 +200,4 @@ app.get('/', (req, res) => {
 });
 
 const PORT = process.env.PORT || 3000;
-app.listen(PORT, () => console.log(`🚀 Refurbyte bot running on port ${PORT}`));
-
+app.listen(PORT, () => console.log(`Server running on port ${PORT}`));
