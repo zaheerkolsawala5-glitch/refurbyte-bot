@@ -1,14 +1,10 @@
-// =========================================================
-// Refurbyte WhatsApp Chatbot — Node.js + Express + SQLite
-// Author: Z (Founder, Refurbyte)
-// Version: 1.2.1 — Cleaned, persistent memory + dynamic menus + lead tracking
-// =========================================================
-
+// server.js
 import express from "express";
 import axios from "axios";
 import rateLimit from "express-rate-limit";
 import dotenv from "dotenv";
 import { initDB } from "./database.js";
+import { backupDB } from "./githubBackup.js";
 
 dotenv.config();
 
@@ -39,7 +35,7 @@ app.get("/healthz", (req, res) => {
   res.status(200).send("✅ Refurbyte chatbot active and online");
 });
 
-// === ROOT ROUTE ===
+// === DEFAULT ROOT ROUTE ===
 app.get("/", (req, res) => {
   res.send("✅ Refurbyte Bot Server is Live and Connected");
 });
@@ -64,7 +60,6 @@ app.get("/webhook", (req, res) => {
 app.post("/webhook", async (req, res) => {
   try {
     const body = req.body;
-
     if (body.object) {
       const entry = body.entry?.[0];
       const changes = entry?.changes?.[0];
@@ -81,7 +76,7 @@ app.post("/webhook", async (req, res) => {
           await db.run(`
             INSERT INTO users (id, last_message)
             VALUES (?, ?)
-            ON CONFLICT(id) DO UPDATE SET last_message=excluded.last_message
+            ON CONFLICT(id) DO UPDATE SET last_message=excluded.last_message, last_interaction=CURRENT_TIMESTAMP
           `, [from, message.text.body]);
         }
 
@@ -98,7 +93,7 @@ app.post("/webhook", async (req, res) => {
         if (db && selectedService) {
           await db.run(`
             UPDATE users
-            SET last_service = ?
+            SET last_service = ?, last_interaction=CURRENT_TIMESTAMP
             WHERE id = ?
           `, [selectedService, from]);
         }
@@ -107,7 +102,61 @@ app.post("/webhook", async (req, res) => {
         if (msgBody.includes("menu")) {
           await sendMenu(from);
         } else if (selectedService) {
-          await sendSubmenuByService(from, selectedService);
+          switch (selectedService) {
+            case "Refurbished PCs":
+              await sendSubmenu(from, selectedService, [
+                "💻 Budget Office PCs from £120",
+                "🎮 Mid-range Gaming PCs from £350",
+                "⚡ High-end Builds from £700+",
+                "",
+                "Reply 'menu' to return."
+              ]);
+              break;
+            case "PC Repairs & Diagnostics":
+              await sendSubmenu(from, selectedService, [
+                "🧠 Full System Diagnostics - £25",
+                "🔧 Repairs (quote after inspection)",
+                "💨 Cleaning & Maintenance - from £20",
+                "",
+                "Reply 'menu' to return."
+              ]);
+              break;
+            case "Hardware Upgrades":
+              await sendSubmenu(from, selectedService, [
+                "🪛 RAM / SSD Upgrades",
+                "🔋 PSU / GPU Replacement",
+                "📈 Performance Optimization",
+                "",
+                "Reply 'menu' to return."
+              ]);
+              break;
+            case "Custom Gaming Builds":
+              await sendSubmenu(from, selectedService, [
+                "🎮 Custom Spec Consultation - Free",
+                "🧩 Budget to Performance Optimized",
+                "🚀 Delivery & Setup Options",
+                "",
+                "Reply 'menu' to return."
+              ]);
+              break;
+            case "Trade-In / Recycle":
+              await sendSubmenu(from, selectedService, [
+                "♻️ Trade your old PC for credit",
+                "🖥️ Free eco-friendly disposal",
+                "",
+                "Reply 'menu' to return."
+              ]);
+              break;
+            case "Contact & Support":
+              await sendSubmenu(from, selectedService, [
+                "📞 WhatsApp us anytime",
+                "📧 support@refurbyte.com",
+                "📍 Leicester, UK",
+                "",
+                "Reply 'menu' to return."
+              ]);
+              break;
+          }
         } else {
           await sendMessage(from, "👋 Welcome to Refurbyte! Type *menu* to get started.");
         }
@@ -140,66 +189,6 @@ async function sendMenu(to) {
   await sendMessage(to, text);
 }
 
-async function sendSubmenuByService(to, service) {
-  let lines = [];
-  switch (service) {
-    case "Refurbished PCs":
-      lines = [
-        "💻 Budget Office PCs from £120",
-        "🎮 Mid-range Gaming PCs from £350",
-        "⚡ High-end Builds from £700+",
-        "",
-        "Reply 'menu' to return."
-      ];
-      break;
-    case "PC Repairs & Diagnostics":
-      lines = [
-        "🧠 Full System Diagnostics - £25",
-        "🔧 Repairs (quote after inspection)",
-        "💨 Cleaning & Maintenance - from £20",
-        "",
-        "Reply 'menu' to return."
-      ];
-      break;
-    case "Hardware Upgrades":
-      lines = [
-        "🪛 RAM / SSD Upgrades",
-        "🔋 PSU / GPU Replacement",
-        "📈 Performance Optimization",
-        "",
-        "Reply 'menu' to return."
-      ];
-      break;
-    case "Custom Gaming Builds":
-      lines = [
-        "🎮 Custom Spec Consultation - Free",
-        "🧩 Budget to Performance Optimized",
-        "🚀 Delivery & Setup Options",
-        "",
-        "Reply 'menu' to return."
-      ];
-      break;
-    case "Trade-In / Recycle":
-      lines = [
-        "♻️ Trade your old PC for credit",
-        "🖥️ Free eco-friendly disposal",
-        "",
-        "Reply 'menu' to return."
-      ];
-      break;
-    case "Contact & Support":
-      lines = [
-        "📞 WhatsApp us anytime",
-        "📧 support@refurbyte.com",
-        "📍 Leicester, UK",
-        "",
-        "Reply 'menu' to return."
-      ];
-      break;
-  }
-  await sendSubmenu(to, service, lines);
-}
-
 async function sendSubmenu(to, title, lines) {
   const text = [`📂 *${title}*`, "", ...lines].join("\n");
   await sendMessage(to, text);
@@ -210,23 +199,4 @@ async function sendMessage(to, text) {
   try {
     await axios.post(
       `https://graph.facebook.com/v17.0/${META_PHONE_NUMBER_ID}/messages`,
-      {
-        messaging_product: "whatsapp",
-        to,
-        text: { body: text },
-      },
-      {
-        headers: {
-          Authorization: `Bearer ${META_ACCESS_TOKEN}`,
-          "Content-Type": "application/json",
-        },
-      }
-    );
-  } catch (err) {
-    console.error("❌ Message send error:", err.response?.data || err.message);
-  }
-}
-
-// === START SERVER ===
-const PORT = process.env.PORT || 3000;
-app.listen(PORT, () => console.log(`🚀 Refurbyte bot running on port ${PORT}`));
+      { messaging_product: "whatsapp", to, text: {
