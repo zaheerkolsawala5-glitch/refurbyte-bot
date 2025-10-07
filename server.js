@@ -173,5 +173,10 @@ async function sendMessage(to, text) {
 }
 
 // === START SERVER ===
+app.get('/', (req, res) => {
+  res.send('✅ Refurbyte Bot Server is Live and Connected');
+});
+
 const PORT = process.env.PORT || 3000;
 app.listen(PORT, () => console.log(`🚀 Refurbyte bot running on port ${PORT}`));
+
