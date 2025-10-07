@@ -1,4 +1,9 @@
-// server.js
+// =========================================================
+// Refurbyte WhatsApp Chatbot — Node.js + Express + SQLite
+// Author: Z (Founder, Refurbyte)
+// Version: 1.3.0 — Persistent memory + dashboard + backups
+// =========================================================
+
 import express from "express";
 import axios from "axios";
 import rateLimit from "express-rate-limit";
@@ -13,15 +18,17 @@ dotenv.config();
 const app = express();
 app.use(express.json());
 
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = path.dirname(__filename);
-
-// Serve dashboard
-app.use(express.static(path.join(__dirname, "public")));
+// === TRUST PROXY (for Render, Heroku, etc.) ===
+app.set("trust proxy", 1);
 
 // === RATE LIMITING ===
 const limiter = rateLimit({ windowMs: 60*1000, max: 20 });
 app.use(limiter);
+
+// === STATIC DASHBOARD ===
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
+app.use(express.static(path.join(__dirname, "public")));
 
 // === ENV VARIABLES ===
 const VERIFY_TOKEN = process.env.VERIFY_TOKEN || "refurbyte_verify";
@@ -38,11 +45,13 @@ initDB().then(database => {
 // === HEALTH CHECK ===
 app.get("/healthz", (req,res) => res.status(200).send("✅ Refurbyte chatbot active and online"));
 
-// === API FOR DASHBOARD ===
+// === DASHBOARD API ===
 app.get("/api/users", async (req,res) => {
   if (!db) return res.json([]);
   try {
-    const users = await db.all("SELECT id, last_message, last_service, last_interaction FROM users ORDER BY last_interaction DESC");
+    const users = await db.all(
+      "SELECT id, last_message, last_service, last_interaction FROM users ORDER BY last_interaction DESC"
+    );
     res.json(users);
   } catch (err) {
     console.error("❌ Error fetching users:", err);
@@ -98,29 +107,66 @@ app.post("/webhook", async (req,res) => {
     else if (msgBody.includes("6")) selectedService="Contact & Support";
 
     if (db && selectedService) {
-      await db.run(`UPDATE users SET last_service=?, last_interaction=CURRENT_TIMESTAMP WHERE id=?`, [selectedService, from]);
+      await db.run(`
+        UPDATE users SET last_service=?, last_interaction=CURRENT_TIMESTAMP WHERE id=?
+      `, [selectedService, from]);
     }
 
     if (msgBody.includes("menu")) await sendMenu(from);
     else if (selectedService) {
       switch(selectedService){
         case "Refurbished PCs":
-          await sendSubmenu(from, selectedService, ["💻 Budget Office PCs from £120","🎮 Mid-range Gaming PCs from £350","⚡ High-end Builds from £700+","","Reply 'menu' to return."]);
+          await sendSubmenu(from, selectedService, [
+            "💻 Budget Office PCs from £120",
+            "🎮 Mid-range Gaming PCs from £350",
+            "⚡ High-end Builds from £700+",
+            "",
+            "Reply 'menu' to return."
+          ]);
           break;
         case "PC Repairs & Diagnostics":
-          await sendSubmenu(from, selectedService, ["🧠 Full System Diagnostics - £25","🔧 Repairs (quote after inspection)","💨 Cleaning & Maintenance - from £20","","Reply 'menu' to return."]);
+          await sendSubmenu(from, selectedService, [
+            "🧠 Full System Diagnostics - £25",
+            "🔧 Repairs (quote after inspection)",
+            "💨 Cleaning & Maintenance - from £20",
+            "",
+            "Reply 'menu' to return."
+          ]);
           break;
         case "Hardware Upgrades":
-          await sendSubmenu(from, selectedService, ["🪛 RAM / SSD Upgrades","🔋 PSU / GPU Replacement","📈 Performance Optimization","","Reply 'menu' to return."]);
+          await sendSubmenu(from, selectedService, [
+            "🪛 RAM / SSD Upgrades",
+            "🔋 PSU / GPU Replacement",
+            "📈 Performance Optimization",
+            "",
+            "Reply 'menu' to return."
+          ]);
           break;
         case "Custom Gaming Builds":
-          await sendSubmenu(from, selectedService, ["🎮 Custom Spec Consultation - Free","🧩 Budget to Performance Optimized","🚀 Delivery & Setup Options","","Reply 'menu' to return."]);
+          await sendSubmenu(from, selectedService, [
+            "🎮 Custom Spec Consultation - Free",
+            "🧩 Budget to Performance Optimized",
+            "🚀 Delivery & Setup Options",
+            "",
+            "Reply 'menu' to return."
+          ]);
           break;
         case "Trade-In / Recycle":
-          await sendSubmenu(from, selectedService, ["♻️ Trade your old PC for credit","🖥️ Free eco-friendly disposal","","Reply 'menu' to return."]);
+          await sendSubmenu(from, selectedService, [
+            "♻️ Trade your old PC for credit",
+            "🖥️ Free eco-friendly disposal",
+            "",
+            "Reply 'menu' to return."
+          ]);
           break;
         case "Contact & Support":
-          await sendSubmenu(from, selectedService, ["📞 WhatsApp us anytime","📧 support@refurbyte.com","📍 Leicester, UK","","Reply 'menu' to return."]);
+          await sendSubmenu(from, selectedService, [
+            "📞 WhatsApp us anytime",
+            "📧 support@refurbyte.com",
+            "📍 Leicester, UK",
+            "",
+            "Reply 'menu' to return."
+          ]);
           break;
       }
     } else {
@@ -137,20 +183,32 @@ app.post("/webhook", async (req,res) => {
 
 // === MENU FUNCTIONS ===
 async function sendMenu(to){
-  const text=["📋 *Refurbyte Main Menu*","","1️⃣ Refurbished PCs","2️⃣ PC Repairs & Diagnostics","3️⃣ Hardware Upgrades","4️⃣ Custom Gaming Builds","5️⃣ Trade-In or Recycle","6️⃣ Contact & Support","","Reply with a number (1-6) to explore a service."].join("\n");
+  const text = [
+    "📋 *Refurbyte Main Menu*",
+    "",
+    "1️⃣ Refurbished PCs",
+    "2️⃣ PC Repairs & Diagnostics",
+    "3️⃣ Hardware Upgrades",
+    "4️⃣ Custom Gaming Builds",
+    "5️⃣ Trade-In or Recycle",
+    "6️⃣ Contact & Support",
+    "",
+    "Reply with a number (1-6) to explore a service."
+  ].join("\n");
   await sendMessage(to, text);
 }
 
 async function sendSubmenu(to, title, lines){
-  const text=[`📂 *${title}*`,"",...lines].join("\n");
+  const text = [`📂 *${title}*`, "", ...lines].join("\n");
   await sendMessage(to, text);
 }
 
 // === WHATSAPP DISPATCH ===
 async function sendMessage(to, text){
   try {
-    await axios.post(`https://graph.facebook.com/v17.0/${META_PHONE_NUMBER_ID}/messages`,
-      { messaging_product: "whatsapp", to, text:{ body:text } },
+    await axios.post(
+      `https://graph.facebook.com/v17.0/${META_PHONE_NUMBER_ID}/messages`,
+      { messaging_product:"whatsapp", to, text:{body:text} },
       { headers:{ Authorization:`Bearer ${META_ACCESS_TOKEN}`, "Content-Type":"application/json" } }
     );
   } catch(err){
